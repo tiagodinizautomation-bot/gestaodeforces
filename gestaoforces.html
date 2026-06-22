@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Forces – Porto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; }
+        .table-row:hover { background-color: #1f2937; }
+        .tab-btn.active { border-bottom: 3px solid #22d3ee; color: #22d3ee; font-weight: 600; }
+        .subtab-btn.active { border-bottom: 3px solid #22d3ee; color: #22d3ee; }
+        .hidden { display: none !important; }
+        select, input, textarea { outline: none; }
+        select:focus, input:focus, textarea:focus { ring: 2px solid #22d3ee; }
+        .btn-action { transition: all 0.15s; }
+        .btn-action:hover { transform: scale(1.05); }
+        .cadastro-item { transition: background 0.2s; }
+        .cadastro-item:hover { background: #1f2937; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .descricao-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .descricao-cell:hover { overflow: visible; white-space: normal; word-break: break-word; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100">
+
+<!-- LOGIN -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-950 to-black">
+    <div class="bg-gray-900/80 backdrop-blur-sm p-10 rounded-3xl w-full max-w-md border border-gray-800 shadow-2xl">
+        <div class="text-center mb-8">
+            <i class="fas fa-hard-hat text-6xl text-cyan-400 mb-4"></i>
+            <h1 class="text-5xl font-black text-cyan-400 tracking-tight">GESTÃO DE FORCES</h1>
+            <p class="text-gray-400 mt-2 text-lg">Sistema de Gestão de STP</p>
+        </div>
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="block text-sm text-gray-400 mb-1 ml-2">Utilizador</label>
+                <input type="text" id="username" autocomplete="off"
+                class="w-full bg-gray-800 p-4 rounded-xl border border-gray-700 focus:border-cyan-400">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1 ml-2">Senha</label>
+                <input type="password" id="password"
+                class="w-full bg-gray-800 p-4 rounded-xl border border-gray-700 focus:border-cyan-400">
+            </div>
+            <button type="submit"
+            class="w-full bg-cyan-600 hover:bg-cyan-500 py-4 rounded-xl font-bold text-lg transition-colors">
+            Entrar
+        </button>
+    </form>
+    <p class="text-center text-gray-600 text-xs mt-6">Admin padrão: admin / 1234</p>
+</div>
+</div>
+
+<!-- APLICAÇÃO PRINCIPAL -->
+<div id="mainApp" class="hidden min-h-screen flex flex-col">
+    <header class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex flex-wrap justify-between items-center gap-3 shadow-lg">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-microchip text-3xl text-cyan-400"></i>
+            <h1 class="text-2xl font-bold hidden sm:block">Controle de Forces</h1>
+            <p class="text-gray-400 mt-2 text-lg">Sistema de Gestão de STP</p>
+        </div>
+        <div class="flex items-center gap-6">
+            <span id="userInfo" class="text-cyan-400 font-medium flex items-center gap-2">
+                <i class="fas fa-user-circle"></i> <span id="userDisplay"></span>
+            </span>
+            <button onclick="logout()" class="text-gray-400 hover:text-red-400 transition-colors" title="Sair">
+                <i class="fas fa-sign-out-alt text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6">
+        <div class="flex border-b border-gray-700 mb-6 overflow-x-auto" id="tabButtons">
+            <button onclick="showTab(0)" class="tab-btn active px-5 py-3 whitespace-nowrap" id="tabBtn0">
+                <i class="fas fa-list-ul mr-2"></i>Forces
+            </button>
+            <button onclick="showTab(1)" class="tab-btn px-5 py-3 whitespace-nowrap" id="tabBtn1">
+                <i class="fas fa-search mr-2"></i>Pesquisa
+            </button>
+            <button onclick="showTab(2)" class="tab-btn px-5 py-3 whitespace-nowrap" id="tabBtn2">
+                <i class="fas fa-cogs mr-2"></i>Cadastros
+            </button>
+        </div>
+
+        <!-- TAB 0 - FORCES -->
+        <div id="tab0">
+            <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                <button onclick="novaForce()"
+                class="bg-emerald-600 hover:bg-emerald-500 px-5 py-3 rounded-xl flex items-center gap-2 transition-colors shadow-lg">
+                <i class="fas fa-plus-circle"></i> Cadastrar Force
+            </button>
+            <div class="flex gap-2 flex-wrap" id="adminActions">
+                <button onclick="exportarJSON()" id="btnBackup"
+                class="bg-blue-600/80 hover:bg-blue-600 px-5 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                <i class="fas fa-save"></i> Backup
+            </button>
+            <button onclick="importarJSON()" id="btnImportar"
+            class="bg-purple-600/80 hover:bg-purple-600 px-5 py-3 rounded-xl flex items-center gap-2 transition-colors">
+            <i class="fas fa-upload"></i> Importar
+        </button>
+    </div>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+    <button onclick="filtrarEstado('')" class="px-4 py-2 bg-gray-800 rounded-full text-sm hover:bg-gray-700">Todos</button>
+    <button onclick="filtrarEstado('Em Andamento')" class="px-4 py-2 bg-amber-900/50 text-amber-300 rounded-full text-sm hover:bg-amber-900">Em Andamento</button>
+    <button onclick="filtrarEstado('Finalizado')" class="px-4 py-2 bg-emerald-900/50 text-emerald-300 rounded-full text-sm hover:bg-emerald-900">Finalizado</button>
+    <span id="filtroAtivo" class="px-4 py-2 text-gray-400 text-sm self-center"></span>
+</div>
+<div class="bg-gray-900 rounded-2xl overflow-x-auto border border-gray-800 shadow-xl">
+    <table class="w-full min-w-[1400px]">
+        <thead class="bg-gray-800 text-gray-300 text-sm">
+            <tr>
+                <th class="px-4 py-4 text-left cursor-pointer hover:text-cyan-400" onclick="ordenarPor('codigo')">Código <i class="fas fa-sort text-xs"></i></th>
+                <th class="px-4 py-4 text-left cursor-pointer hover:text-cyan-400" onclick="ordenarPor('data')">Data <i class="fas fa-sort text-xs"></i></th>
+                <th class="px-4 py-4 text-left">Tipo</th>
+                <th class="px-4 py-4 text-left">Local</th>
+                <th class="px-4 py-4 text-left">Equipamento</th>
+                <th class="px-4 py-4 text-left">Endereço</th>
+                <th class="px-4 py-4 text-left">PI</th>
+                <th class="px-4 py-4 text-left">Descrição</th>
+                <th class="px-4 py-4 text-left">Solicitante</th>
+                <th class="px-4 py-4 text-left">Estado</th>
+                <th class="px-4 py-4 text-center">Ações</th>
+            </tr>
+        </thead>
+        <tbody id="tabela-forces" class="divide-y divide-gray-800 text-sm"></tbody>
+    </table>
+</div>
+</div>
+
+        <!-- TAB 1 - PESQUISA -->
+        <div id="tab1" class="hidden">
+            <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <input type="text" id="pesqTexto" placeholder="🔍 Código, descrição..."
+                    class="bg-gray-800 p-4 rounded-xl w-full" oninput="pesquisar()">
+                    <select id="pesqTipo" class="bg-gray-800 p-4 rounded-xl w-full" onchange="pesquisar()">
+                        <option value="">Todos os tipos</option>
+                    </select>
+                    <select id="pesqEstado" class="bg-gray-800 p-4 rounded-xl w-full" onchange="pesquisar()">
+                        <option value="">Todos os estados</option>
+                        <option value="Em Andamento">Em Andamento</option>
+                        <option value="Finalizado">Finalizado</option>
+                    </select>
+                    <input type="date" id="pesqData" class="bg-gray-800 p-4 rounded-xl w-full" onchange="pesquisar()">
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="exportarResultadoPesquisa()" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                        <i class="fas fa-download"></i> Exportar Resultado (Excel)
+                    </button>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-2xl overflow-x-auto border border-gray-800">
+                <table class="w-full min-w-[1400px]">
+                    <thead class="bg-gray-800 text-gray-300 text-sm">
+                        <tr>
+                            <th class="px-4 py-4">Código</th><th class="px-4 py-4">Data</th><th class="px-4 py-4">Tipo</th>
+                            <th class="px-4 py-4">Local</th><th class="px-4 py-4">Equipamento</th><th class="px-4 py-4">Endereço</th><th class="px-4 py-4">PI</th>
+                            <th class="px-4 py-4">Descrição</th><th class="px-4 py-4">Solução Aplicada</th>
+                            <th class="px-4 py-4">Solicitante</th><th class="px-4 py-4">Estado</th><th class="px-4 py-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-pesquisa" class="divide-y divide-gray-800 text-sm"></tbody>
+                </table>
+                <div id="semResultados" class="text-center text-gray-500 py-10 hidden">Nenhum resultado encontrado.</div>
+            </div>
+        </div>
+
+        <!-- TAB 2 - CADASTROS (apenas admin) -->
+        <div id="tab2" class="hidden">
+            <div class="flex border-b border-gray-700 mb-6 overflow-x-auto" id="subtabButtons">
+                <button onclick="showSubTab(0)" class="subtab-btn active px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-cube mr-1"></i> Equipamentos
+                </button>
+                <button onclick="showSubTab(1)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-map-marker-alt mr-1"></i> Locais
+                </button>
+                <button onclick="showSubTab(2)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-robot mr-1"></i> Autômatos
+                </button>
+                <button onclick="showSubTab(3)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-tag mr-1"></i> Tipos
+                </button>
+                <button onclick="showSubTab(4)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-user-tie mr-1"></i> Solicitantes
+                </button>
+                <button onclick="showSubTab(5)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-hard-hat mr-1"></i> Executantes
+                </button>
+                <button onclick="showSubTab(6)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base">
+                    <i class="fas fa-building mr-1"></i> Diretorias
+                </button>
+                <button onclick="showSubTab(7)" class="subtab-btn px-4 py-3 whitespace-nowrap text-sm md:text-base" id="subtabUsuarios">
+                    <i class="fas fa-users mr-1"></i> Utilizadores
+                </button>
+            </div>
+            <div id="subtab0" class="cad-tab"></div>
+            <div id="subtab1" class="cad-tab hidden"></div>
+            <div id="subtab2" class="cad-tab hidden"></div>
+            <div id="subtab3" class="cad-tab hidden"></div>
+            <div id="subtab4" class="cad-tab hidden"></div>
+            <div id="subtab5" class="cad-tab hidden"></div>
+            <div id="subtab6" class="cad-tab hidden"></div>
+            <div id="subtab7" class="cad-tab hidden"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL FORCE -->
+<div id="modalForce" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 modal-overlay" onclick="if(event.target===this) fecharModal()">
+    <div class="bg-gray-900 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-auto border border-gray-800 shadow-2xl">
+        <div class="sticky top-0 bg-gray-900 p-6 pb-2 z-10 flex justify-between items-center">
+            <h2 class="text-2xl font-bold" id="modalTitle">Cadastrar Force</h2>
+            <button onclick="fecharModal()" class="text-gray-400 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="formForce" class="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="hidden" id="editIndex" value="-1">
+            <div class="md:col-span-2">
+                <label class="text-sm text-gray-400">Código</label>
+                <input id="codigo" readonly class="w-full bg-gray-800 p-4 rounded-2xl text-cyan-400 font-mono tracking-wider">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Data</label>
+                <input type="date" id="data" class="w-full bg-gray-800 p-4 rounded-2xl">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Tipo</label>
+                <select id="tipoForce" class="w-full bg-gray-800 p-4 rounded-2xl"></select>
+            </div>
+            <!-- Novo campo Local -->
+            <div>
+                <label class="text-sm text-gray-400">Local</label>
+                <select id="local" class="w-full bg-gray-800 p-4 rounded-2xl" onchange="atualizarEquipamentosPorLocal()">
+                    <option value="">Selecione um local</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Equipamento</label>
+                <select id="equipamento" class="w-full bg-gray-800 p-4 rounded-2xl"></select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Autômato</label>
+                <select id="automato" class="w-full bg-gray-800 p-4 rounded-2xl"></select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="text-sm text-gray-400">Endereço / Rung</label>
+                <input id="endereco" class="w-full bg-gray-800 p-4 rounded-2xl" placeholder="Ex: LAD: MainProgram, Rung: 10, bit: ESTUFA_IV_STDBY">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">PI (até 8 dígitos)</label>
+                <input id="pi" type="text" pattern="\d{0,8}" maxlength="8" inputmode="numeric"
+                class="w-full bg-gray-800 p-4 rounded-2xl" placeholder="Número do PI">
+            </div>
+            <div class="md:col-span-2">
+                <label class="text-sm text-gray-400">Descrição do Problema</label>
+                <textarea id="descricao" rows="3" class="w-full bg-gray-800 p-4 rounded-2xl" placeholder="Descreva o motivo da intervenção..."></textarea>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Solicitante</label>
+                <select id="solicitante" class="w-full bg-gray-800 p-4 rounded-2xl"></select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Executante</label>
+                <select id="executante" class="w-full bg-gray-800 p-4 rounded-2xl"></select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Diretoria</label>
+                <select id="diretoria" class="w-full bg-gray-800 p-4 rounded-2xl"></select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Estado</label>
+                <select id="estado" class="w-full bg-gray-800 p-4 rounded-2xl" onchange="toggleSolucao()">
+                    <option value="Em Andamento">Em Andamento</option>
+                    <option value="Finalizado">Finalizado</option>
+                </select>
+            </div>
+            <div id="divSolucao" class="md:col-span-2 hidden">
+                <label class="text-sm text-gray-400">Solução Aplicada</label>
+                <textarea id="solucao" rows="3" class="w-full bg-gray-800 p-4 rounded-2xl" placeholder="Descreva a solução..."></textarea>
+            </div>
+            <div class="md:col-span-2 flex gap-4 mt-4">
+                <button type="button" onclick="fecharModal()" class="flex-1 py-4 bg-gray-700 hover:bg-gray-600 rounded-2xl transition-colors">Cancelar</button>
+                <button type="submit" class="flex-1 py-4 bg-cyan-600 hover:bg-cyan-500 rounded-2xl font-bold transition-colors">
+                    <i class="fas fa-check mr-2"></i> Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ==================== DADOS INICIAIS ====================
+    const DEFAULT_CADASTROS = {
+        locais: ["Setor A", "Setor B", "Setor C"],
+        equipamentos: [
+            { nome: "Prensa 01", local: "Setor A" },
+            { nome: "Transportador T3", local: "Setor A" },
+            { nome: "Misturador M5", local: "Setor B" },
+            { nome: "Enfardadeira E2", local: "Setor C" }
+        ],
+        automatos: ["PLC1 - Siemens S7-1200", "PLC2 - Rockwell CompactLogix", "PLC3 - Schneider M340"],
+        tiposForce: ["Corretiva", "Preventiva", "Preditiva", "Melhoria"],
+        solicitantes: ["João Silva", "Maria Sousa", "Carlos Santos", "Ana Ferreira"],
+        executantes: ["Equipa Mecânica", "Equipa Elétrica", "Equipa Automação", "Manutenção Geral"],
+        diretorias: ["Produção", "Manutenção", "Qualidade", "Logística"],
+        usuarios: [{ username: "admin", password: "1234", role: "admin" }]
+    };
+
+    const STORAGE_KEYS = {
+        forces: 'forces_data',
+        cadastros: 'forces_cadastros'
+    };
+
+    let forces = [];
+    let cadastros = {};
+    let filtroEstadoAtual = '';
+    let ordenacaoAtual = { campo: 'codigo', asc: true };
+    let currentUserRole = 'padrão';
+
+    // ==================== INICIALIZAÇÃO ====================
+    function carregarDados() {
+        const f = localStorage.getItem(STORAGE_KEYS.forces);
+        forces = f ? JSON.parse(f) : [];
+        const c = localStorage.getItem(STORAGE_KEYS.cadastros);
+        cadastros = c ? JSON.parse(c) : { ...DEFAULT_CADASTROS };
+        if (!Array.isArray(cadastros.usuarios) || cadastros.usuarios.length === 0) {
+            cadastros.usuarios = DEFAULT_CADASTROS.usuarios;
+        }
+        // Garantir que equipamentos seja array de objetos
+        if (!Array.isArray(cadastros.equipamentos)) {
+            cadastros.equipamentos = DEFAULT_CADASTROS.equipamentos;
+        }
+        // Garantir que locais exista
+        if (!Array.isArray(cadastros.locais)) {
+            cadastros.locais = DEFAULT_CADASTROS.locais;
+        }
+    }
+
+    function salvarForces() {
+        localStorage.setItem(STORAGE_KEYS.forces, JSON.stringify(forces));
+    }
+
+    function salvarCadastros() {
+        localStorage.setItem(STORAGE_KEYS.cadastros, JSON.stringify(cadastros));
+    }
+
+    function obterProximoId() {
+        return forces.length > 0 ? Math.max(...forces.map(f => f.id || 0)) + 1 : 1;
+    }
+
+    // ==================== LOGIN ====================
+    document.getElementById('loginForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value.trim();
+        const usuarioEncontrado = cadastros.usuarios.find(u => u.username === user && u.password === pass);
+        if (usuarioEncontrado) {
+            currentUserRole = usuarioEncontrado.role || 'padrão';
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('userDisplay').textContent = user;
+            aplicarPermissoes();
+            carregarDados();
+            renderizarTudo();
+        } else {
+            alert('Credenciais inválidas.');
+        }
+    });
+
+    function logout() {
+        document.getElementById('mainApp').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('password').value = '';
+        currentUserRole = 'padrão';
+    }
+
+    function aplicarPermissoes() {
+        const isAdmin = currentUserRole === 'admin';
+        document.getElementById('tabBtn2').classList.toggle('hidden', !isAdmin);
+        document.getElementById('btnBackup').classList.toggle('hidden', !isAdmin);
+        document.getElementById('btnImportar').classList.toggle('hidden', !isAdmin);
+        document.getElementById('subtabUsuarios')?.classList.toggle('hidden', !isAdmin);
+        if (!isAdmin && document.getElementById('tab2') && !document.getElementById('tab2').classList.contains('hidden')) {
+            showTab(0);
+        }
+    }
+
+    // ==================== NAVEGAÇÃO ====================
+    function showTab(n) {
+        if (n === 2 && currentUserRole !== 'admin') return;
+        document.querySelectorAll('.tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === n));
+        ['tab0', 'tab1', 'tab2'].forEach((id, i) => {
+            document.getElementById(id).classList.toggle('hidden', i !== n);
+        });
+        if (n === 1) atualizarFiltrosPesquisa();
+    }
+
+    function showSubTab(n) {
+        document.querySelectorAll('.subtab-btn').forEach((btn, i) => btn.classList.toggle('active', i === n));
+        for (let i = 0; i < 8; i++) {
+            document.getElementById('subtab' + i)?.classList.toggle('hidden', i !== n);
+        }
+        renderizarCadastroAtivo(n);
+    }
+
+    // ==================== CADASTROS ====================
+    const chavesCadastro = ['equipamentos', 'locais', 'automatos', 'tiposForce', 'solicitantes', 'executantes', 'diretorias', 'usuarios'];
+    const titulosCadastro = ['Equipamentos', 'Locais', 'Autômatos', 'Tipos de Force', 'Solicitantes', 'Executantes', 'Diretorias', 'Utilizadores'];
+
+    function renderizarCadastroAtivo(index) {
+        const container = document.getElementById('subtab' + index);
+        if (!container) return;
+        const chave = chavesCadastro[index];
+
+        if (index === 7) { // Utilizadores
+            const usuarios = cadastros.usuarios || [];
+            container.innerHTML = `
+            <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+            <div class="flex flex-wrap gap-3 mb-6">
+            <input type="text" id="inputUserNome" placeholder="Nome de utilizador"
+            class="bg-gray-800 p-4 rounded-xl flex-1 min-w-[150px]">
+            <input type="password" id="inputUserSenha" placeholder="Senha"
+            class="bg-gray-800 p-4 rounded-xl flex-1 min-w-[150px]">
+            <button onclick="adicionarUsuario()"
+            class="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-xl transition-colors">
+            <i class="fas fa-plus mr-1"></i> Adicionar
+            </button>
+            </div>
+            <ul class="space-y-2" id="listaUsuarios">
+            ${usuarios.map((u, i) => `
+            <li class="cadastro-item flex justify-between items-center bg-gray-800 p-4 rounded-xl">
+            <div>
+            <span class="font-medium">${u.username}</span>
+            <span class="text-xs text-gray-400 ml-2">(${u.role || 'padrão'})</span>
+            </div>
+            <div class="flex gap-2">
+            <button onclick="removerUsuario(${i})" class="text-red-400 hover:text-red-300 transition-colors" title="Remover">
+            <i class="fas fa-trash-alt"></i>
+            </button>
+            </div>
+            </li>
+            `).join('')}
+            ${usuarios.length === 0 ? '<li class="text-gray-500 text-center py-4">Nenhum utilizador cadastrado.</li>' : ''}
+            </ul>
+            </div>
+            `;
+        } else if (index === 0) { // Equipamentos
+            const equipamentos = cadastros.equipamentos || [];
+            const locais = cadastros.locais || [];
+            container.innerHTML = `
+            <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <input type="text" id="inputEquipNome" placeholder="Nome do equipamento" class="bg-gray-800 p-4 rounded-xl flex-1 min-w-[200px]">
+                    <select id="inputEquipLocal" class="bg-gray-800 p-4 rounded-xl">
+                        <option value="">Selecione local</option>
+                        ${locais.map(l => `<option value="${l}">${l}</option>`).join('')}
+                    </select>
+                    <button onclick="adicionarEquipamento()" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-xl transition-colors">
+                        <i class="fas fa-plus mr-1"></i> Adicionar
+                    </button>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <button onclick="importarEquipamentos()" class="bg-blue-600/80 hover:bg-blue-600 px-4 py-2 rounded-xl text-sm flex items-center gap-1">
+                        <i class="fas fa-file-import"></i> Importar Equipamentos
+                    </button>
+                    <button onclick="exportarEquipamentos()" class="bg-purple-600/80 hover:bg-purple-600 px-4 py-2 rounded-xl text-sm flex items-center gap-1">
+                        <i class="fas fa-file-export"></i> Exportar Equipamentos
+                    </button>
+                </div>
+                <div class="text-xs text-gray-400 mb-2">
+                    <i class="fas fa-info-circle"></i> Pode selecionar um ficheiro da pasta N:\\...\\forces_folder
+                </div>
+                <ul class="space-y-2" id="listaEquipamentos">
+                ${equipamentos.map((e, i) => `
+                <li class="cadastro-item flex justify-between items-center bg-gray-800 p-4 rounded-xl">
+                    <span>🔵 ${e.nome} <span class="text-xs text-gray-400 ml-2">(${e.local || 'Sem local'})</span></span>
+                    <button onclick="removerEquipamento(${i})" class="text-red-400 hover:text-red-300 transition-colors">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </li>`).join('')}
+                ${equipamentos.length === 0 ? '<li class="text-gray-500 text-center py-4">Nenhum equipamento cadastrado.</li>' : ''}
+                </ul>
+            </div>`;
+        } else if (index === 1) { // Locais
+            const locais = cadastros.locais || [];
+            container.innerHTML = `
+            <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <input type="text" id="inputLocal" placeholder="Nome do local" class="bg-gray-800 p-4 rounded-xl flex-1 min-w-[200px]">
+                    <button onclick="adicionarLocal()" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-xl transition-colors">
+                        <i class="fas fa-plus mr-1"></i> Adicionar
+                    </button>
+                </div>
+                <ul class="space-y-2">
+                ${locais.map((l, i) => `
+                <li class="cadastro-item flex justify-between items-center bg-gray-800 p-4 rounded-xl">
+                    <span>📍 ${l}</span>
+                    <button onclick="removerLocal(${i})" class="text-red-400 hover:text-red-300 transition-colors">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </li>`).join('')}
+                ${locais.length === 0 ? '<li class="text-gray-500 text-center py-4">Nenhum local cadastrado.</li>' : ''}
+                </ul>
+            </div>`;
+        } else { // Demais cadastros de strings simples
+            const chave = chavesCadastro[index];
+            const itens = cadastros[chave] || [];
+            container.innerHTML = `
+            <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800">
+            <div class="flex flex-wrap gap-3 mb-6">
+            <input type="text" id="inputCadastro${index}" placeholder="Novo ${titulosCadastro[index].slice(0, -1)}..."
+            class="bg-gray-800 p-4 rounded-xl flex-1 min-w-[200px]">
+            <button onclick="adicionarCadastro(${index})"
+            class="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-xl transition-colors">
+            <i class="fas fa-plus mr-1"></i> Adicionar
+            </button>
+            </div>
+            <ul class="space-y-2" id="listaCadastro${index}">
+            ${itens.map((item, i) => `
+            <li class="cadastro-item flex justify-between items-center bg-gray-800 p-4 rounded-xl">
+            <span class="flex items-center gap-3"><i class="fas fa-circle text-cyan-500 text-xs"></i>${item}</span>
+            <button onclick="removerCadastro(${index}, ${i})" class="text-red-400 hover:text-red-300 transition-colors">
+            <i class="fas fa-trash-alt"></i>
+            </button>
+            </li>
+            `).join('')}
+            ${itens.length === 0 ? '<li class="text-gray-500 text-center py-4">Nenhum item cadastrado.</li>' : ''}
+            </ul>
+            </div>
+            `;
+        }
+    }
+
+    // Funções para equipamentos (objetos)
+    function adicionarEquipamento() {
+        const nome = document.getElementById('inputEquipNome')?.value.trim();
+        const local = document.getElementById('inputEquipLocal')?.value;
+        if (!nome || !local) return alert('Preencha nome e local.');
+        cadastros.equipamentos.push({ nome, local });
+        salvarCadastros();
+        renderizarCadastroAtivo(0);
+        atualizarSelectsFormulario();
+        document.getElementById('inputEquipNome').value = '';
+    }
+
+    function removerEquipamento(index) {
+        if (confirm(`Remover "${cadastros.equipamentos[index].nome}"?`)) {
+            cadastros.equipamentos.splice(index, 1);
+            salvarCadastros();
+            renderizarCadastroAtivo(0);
+            atualizarSelectsFormulario();
+        }
+    }
+
+    function importarEquipamentos() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx,.xls,.csv';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                try {
+                    const data = new Uint8Array(ev.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    // Espera-se colunas: Nome, Local
+                    const novosEquipamentos = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const [nome, local] = rows[i];
+                        if (nome && local) {
+                            novosEquipamentos.push({ nome: String(nome).trim(), local: String(local).trim() });
+                        }
+                    }
+                    if (novosEquipamentos.length > 0) {
+                        cadastros.equipamentos = [...cadastros.equipamentos, ...novosEquipamentos];
+                        salvarCadastros();
+                        renderizarCadastroAtivo(0);
+                        atualizarSelectsFormulario();
+                        alert(`${novosEquipamentos.length} equipamentos importados.`);
+                    } else {
+                        alert('Nenhum equipamento válido encontrado no ficheiro.');
+                    }
+                } catch (err) {
+                    alert('Erro ao ler o ficheiro.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+        input.click();
+    }
+
+    function exportarEquipamentos() {
+        const dados = cadastros.equipamentos.map(e => ({ Nome: e.nome, Local: e.local }));
+        const ws = XLSX.utils.json_to_sheet(dados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos');
+        XLSX.writeFile(wb, `equipamentos-${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // Funções para locais (strings simples)
+    function adicionarLocal() {
+        const valor = document.getElementById('inputLocal')?.value.trim();
+        if (!valor) return alert('Informe o nome do local.');
+        if (!cadastros.locais.includes(valor)) {
+            cadastros.locais.push(valor);
+            salvarCadastros();
+            renderizarCadastroAtivo(1);
+            atualizarSelectsFormulario();
+        } else {
+            alert('Local já existe.');
+        }
+        document.getElementById('inputLocal').value = '';
+    }
+
+    function removerLocal(index) {
+        if (confirm(`Remover local "${cadastros.locais[index]}"?`)) {
+            cadastros.locais.splice(index, 1);
+            salvarCadastros();
+            renderizarCadastroAtivo(1);
+            atualizarSelectsFormulario();
+        }
+    }
+
+    // Funções genéricas para outros cadastros (strings)
+    function adicionarCadastro(index) {
+        const input = document.getElementById('inputCadastro' + index);
+        const valor = input?.value.trim();
+        if (!valor) return alert('Informe um valor.');
+        const chave = chavesCadastro[index];
+        if (!cadastros[chave].includes(valor)) {
+            cadastros[chave].push(valor);
+            salvarCadastros();
+            renderizarCadastroAtivo(index);
+            atualizarSelectsFormulario();
+        } else {
+            alert('Este item já existe na lista.');
+        }
+        input.value = '';
+    }
+
+    function removerCadastro(index, itemIndex) {
+        const chave = chavesCadastro[index];
+        if (confirm(`Remover "${cadastros[chave][itemIndex]}"?`)) {
+            cadastros[chave].splice(itemIndex, 1);
+            salvarCadastros();
+            renderizarCadastroAtivo(index);
+            atualizarSelectsFormulario();
+        }
+    }
+
+    function adicionarUsuario() {
+        const nome = document.getElementById('inputUserNome')?.value.trim();
+        const senha = document.getElementById('inputUserSenha')?.value.trim();
+        if (!nome || !senha) return alert('Preencha utilizador e senha.');
+        if (cadastros.usuarios.some(u => u.username === nome)) {
+            alert('Utilizador já existe.');
+            return;
+        }
+        cadastros.usuarios.push({ username: nome, password: senha, role: 'padrão' });
+        salvarCadastros();
+        renderizarCadastroAtivo(7);
+        document.getElementById('inputUserNome').value = '';
+        document.getElementById('inputUserSenha').value = '';
+    }
+
+    function removerUsuario(index) {
+        const usuario = cadastros.usuarios[index];
+        if (!usuario) return;
+        const adminsRestantes = cadastros.usuarios.filter(u => u.role === 'admin');
+        if (usuario.role === 'admin' && adminsRestantes.length <= 1) {
+            alert('Não é possível remover o último administrador.');
+            return;
+        }
+        if (confirm(`Remover o utilizador "${usuario.username}"?`)) {
+            cadastros.usuarios.splice(index, 1);
+            salvarCadastros();
+            renderizarCadastroAtivo(7);
+        }
+    }
+
+    function atualizarSelectsFormulario() {
+        // Preencher select de locais
+        const localSelect = document.getElementById('local');
+        if (localSelect) {
+            const localAtual = localSelect.value;
+            localSelect.innerHTML = '<option value="">Selecione um local</option>' +
+                cadastros.locais.map(l => `<option value="${l}">${l}</option>`).join('');
+            if (cadastros.locais.includes(localAtual)) localSelect.value = localAtual;
+        }
+
+        // Preencher selects padrão
+        const selects = {
+            tipoForce: cadastros.tiposForce,
+            automato: cadastros.automatos,
+            solicitante: cadastros.solicitantes,
+            executante: cadastros.executantes,
+            diretoria: cadastros.diretorias
+        };
+        for (const [id, opcoes] of Object.entries(selects)) {
+            const select = document.getElementById(id);
+            if (!select) continue;
+            const valorAtual = select.value;
+            select.innerHTML = opcoes.map(o => `<option value="${o}">${o}</option>`).join('');
+            if (opcoes.includes(valorAtual)) select.value = valorAtual;
+        }
+
+        // Atualizar equipamentos baseado no local selecionado
+        atualizarEquipamentosPorLocal();
+    }
+
+    function atualizarEquipamentosPorLocal() {
+        const localSelecionado = document.getElementById('local')?.value;
+        const equipSelect = document.getElementById('equipamento');
+        if (!equipSelect) return;
+        const equipFiltrados = localSelecionado
+            ? cadastros.equipamentos.filter(e => e.local === localSelecionado)
+            : cadastros.equipamentos;
+        const valorAtual = equipSelect.value;
+        equipSelect.innerHTML = equipFiltrados.map(e => `<option value="${e.nome}">${e.nome}</option>`).join('');
+        if (equipFiltrados.some(e => e.nome === valorAtual)) {
+            equipSelect.value = valorAtual;
+        }
+    }
+
+    // ==================== FORCES - CRUD ====================
+    function gerarCodigo() {
+        const proximo = obterProximoId();
+        const ano = new Date().getFullYear();
+        return `A${ano}-${String(proximo).padStart(4, '0')}`;
+    }
+
+    function novaForce() {
+        document.getElementById('formForce').reset();
+        document.getElementById('editIndex').value = '-1';
+        document.getElementById('modalTitle').textContent = 'Cadastrar Force';
+        atualizarSelectsFormulario();
+        document.getElementById('codigo').value = gerarCodigo();
+        document.getElementById('data').value = new Date().toISOString().slice(0,10);
+        document.getElementById('estado').value = 'Em Andamento';
+        document.getElementById('divSolucao').classList.add('hidden');
+        document.getElementById('solucao').value = '';
+        document.getElementById('pi').value = '';
+        document.getElementById('modalForce').classList.remove('hidden');
+    }
+
+    function editarForce(index) {
+        const f = forces[index];
+        document.getElementById('editIndex').value = index;
+        document.getElementById('modalTitle').textContent = 'Editar Force';
+        document.getElementById('codigo').value = f.codigo;
+        document.getElementById('data').value = f.data;
+        document.getElementById('endereco').value = f.endereco || '';
+        document.getElementById('pi').value = f.pi || '';
+        document.getElementById('descricao').value = f.descricao || '';
+        document.getElementById('solucao').value = f.solucao || '';
+        atualizarSelectsFormulario();
+        document.getElementById('local').value = f.local || '';
+        document.getElementById('tipoForce').value = f.tipoForce || cadastros.tiposForce[0] || '';
+        document.getElementById('equipamento').value = f.equipamento || '';
+        document.getElementById('automato').value = f.automato || cadastros.automatos[0] || '';
+        document.getElementById('solicitante').value = f.solicitante || cadastros.solicitantes[0] || '';
+        document.getElementById('executante').value = f.executante || cadastros.executantes[0] || '';
+        document.getElementById('diretoria').value = f.diretoria || cadastros.diretorias[0] || '';
+        document.getElementById('estado').value = f.estado || 'Em Andamento';
+        toggleSolucao();
+        document.getElementById('modalForce').classList.remove('hidden');
+    }
+
+    function excluirForce(index) {
+        const f = forces[index];
+        if (confirm(`Excluir permanentemente a Force ${f.codigo}?`)) {
+            forces.splice(index, 1);
+            salvarForces();
+            renderizarTudo();
+        }
+    }
+
+    function fecharModal() {
+        document.getElementById('modalForce').classList.add('hidden');
+    }
+
+    function toggleSolucao() {
+        const estado = document.getElementById('estado').value;
+        document.getElementById('divSolucao').classList.toggle('hidden', estado !== 'Finalizado');
+    }
+
+    document.getElementById('formForce').addEventListener('submit', e => {
+        e.preventDefault();
+        const editIndex = parseInt(document.getElementById('editIndex').value);
+        const novoId = editIndex >= 0 ? forces[editIndex].id : obterProximoId();
+        const forceObj = {
+            id: novoId,
+            codigo: document.getElementById('codigo').value,
+            data: document.getElementById('data').value,
+            tipoForce: document.getElementById('tipoForce').value,
+            local: document.getElementById('local').value,
+            equipamento: document.getElementById('equipamento').value,
+            automato: document.getElementById('automato').value,
+            endereco: document.getElementById('endereco').value,
+            pi: document.getElementById('pi').value.replace(/\D/g, '').slice(0, 8),
+            descricao: document.getElementById('descricao').value,
+            solicitante: document.getElementById('solicitante').value,
+            executante: document.getElementById('executante').value,
+            diretoria: document.getElementById('diretoria').value,
+            estado: document.getElementById('estado').value,
+            solucao: document.getElementById('estado').value === 'Finalizado' ? document.getElementById('solucao').value : ''
+        };
+
+        if (editIndex >= 0) {
+            forces[editIndex] = forceObj;
+        } else {
+            forces.unshift(forceObj);
+        }
+        salvarForces();
+        fecharModal();
+        renderizarTudo();
+    });
+
+    // ==================== RENDERIZAÇÃO ====================
+    function renderizarTudo() {
+        renderizarTabela();
+        atualizarFiltrosPesquisa();
+        const tab2 = document.getElementById('tab2');
+        if (!tab2.classList.contains('hidden') && currentUserRole === 'admin') {
+            const subtabs = document.querySelectorAll('.cad-tab');
+            subtabs.forEach((tab, i) => {
+                if (!tab.classList.contains('hidden')) renderizarCadastroAtivo(i);
+            });
+        }
+    }
+
+    function filtrarEstado(estado) {
+        filtroEstadoAtual = estado;
+        document.getElementById('filtroAtivo').textContent = estado ? `Filtro: ${estado}` : '';
+        renderizarTabela();
+    }
+
+    function ordenarPor(campo) {
+        if (ordenacaoAtual.campo === campo) {
+            ordenacaoAtual.asc = !ordenacaoAtual.asc;
+        } else {
+            ordenacaoAtual = { campo, asc: true };
+        }
+        renderizarTabela();
+    }
+
+    function getForcesFiltradas() {
+        let lista = [...forces];
+        if (filtroEstadoAtual) {
+            lista = lista.filter(f => f.estado === filtroEstadoAtual);
+        }
+        lista.sort((a, b) => {
+            let valA = a[ordenacaoAtual.campo] || '';
+            let valB = b[ordenacaoAtual.campo] || '';
+            if (ordenacaoAtual.campo === 'data') {
+                valA = valA.replace(/-/g, '');
+                valB = valB.replace(/-/g, '');
+            }
+            if (valA < valB) return ordenacaoAtual.asc ? -1 : 1;
+            if (valA > valB) return ordenacaoAtual.asc ? 1 : -1;
+            return 0;
+        });
+        return lista;
+    }
+
+    function renderizarTabela() {
+        const lista = getForcesFiltradas();
+        const tbody = document.getElementById('tabela-forces');
+        if (!tbody) return;
+        tbody.innerHTML = lista.map((f, idx) => {
+            const originalIndex = forces.indexOf(f);
+            const descricaoTruncada = f.descricao ? (f.descricao.length > 40 ? f.descricao.substring(0, 40) + '...' : f.descricao) : '-';
+            return `
+            <tr class="table-row">
+            <td class="px-4 py-4 font-mono text-cyan-400 font-semibold">${f.codigo}</td>
+            <td class="px-4 py-4">${f.data || '-'}</td>
+            <td class="px-4 py-4">${f.tipoForce || '-'}</td>
+            <td class="px-4 py-4">${f.local || '-'}</td>
+            <td class="px-4 py-4">${f.equipamento || '-'}</td>
+            <td class="px-4 py-4">${f.endereco || '-'}</td>
+            <td class="px-4 py-4">${f.pi || '-'}</td>
+            <td class="px-4 py-4 descricao-cell" title="${f.descricao || ''}">${descricaoTruncada}</td>
+            <td class="px-4 py-4">${f.solicitante || '-'}</td>
+            <td class="px-4 py-4">
+            <span class="${f.estado === 'Finalizado' ? 'bg-emerald-700 text-emerald-200' : 'bg-amber-700 text-amber-200'} px-3 py-1 rounded-full text-xs font-medium">
+            ${f.estado || 'Em Andamento'}
+            </span>
+            </td>
+            <td class="px-4 py-4 text-center">
+            <div class="flex justify-center gap-2">
+            <button onclick="editarForce(${originalIndex})" class="btn-action text-cyan-400 hover:text-cyan-300" title="Editar">
+            <i class="fas fa-edit"></i>
+            </button>
+            <button onclick="excluirForce(${originalIndex})" class="btn-action text-red-400 hover:text-red-300" title="Excluir">
+            <i class="fas fa-trash"></i>
+            </button>
+            </div>
+            </td>
+            </tr>
+            `;
+        }).join('');
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center text-gray-500 py-10">Nenhuma force encontrada.</td></tr>';
+        }
+    }
+
+    // ==================== PESQUISA ====================
+    function atualizarFiltrosPesquisa() {
+        const tipoSelect = document.getElementById('pesqTipo');
+        if (tipoSelect) {
+            tipoSelect.innerHTML = '<option value="">Todos os tipos</option>' +
+                cadastros.tiposForce.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+        pesquisar();
+    }
+
+    function pesquisar() {
+        const texto = document.getElementById('pesqTexto')?.value.toLowerCase() || '';
+        const tipo = document.getElementById('pesqTipo')?.value || '';
+        const estado = document.getElementById('pesqEstado')?.value || '';
+        const data = document.getElementById('pesqData')?.value || '';
+
+        let resultados = forces.filter(f => {
+            if (texto && !f.codigo.toLowerCase().includes(texto) && !(f.descricao || '').toLowerCase().includes(texto) &&
+                !(f.equipamento || '').toLowerCase().includes(texto) && !(f.endereco || '').toLowerCase().includes(texto))
+                return false;
+            if (tipo && f.tipoForce !== tipo) return false;
+            if (estado && f.estado !== estado) return false;
+            if (data && f.data !== data) return false;
+            return true;
+        });
+
+        const tbody = document.getElementById('tabela-pesquisa');
+        const sem = document.getElementById('semResultados');
+        if (tbody) {
+            tbody.innerHTML = resultados.map(f => {
+                const idx = forces.indexOf(f);
+                const descTrunc = f.descricao ? (f.descricao.length > 30 ? f.descricao.substring(0, 30) + '...' : f.descricao) : '-';
+                const solTrunc = f.solucao ? (f.solucao.length > 30 ? f.solucao.substring(0, 30) + '...' : f.solucao) : '-';
+                return `
+                <tr class="table-row">
+                <td class="px-4 py-4 font-mono text-cyan-400">${f.codigo}</td>
+                <td class="px-4 py-4">${f.data || '-'}</td>
+                <td class="px-4 py-4">${f.tipoForce || '-'}</td>
+                <td class="px-4 py-4">${f.local || '-'}</td>
+                <td class="px-4 py-4">${f.equipamento || '-'}</td>
+                <td class="px-4 py-4">${f.endereco || '-'}</td>
+                <td class="px-4 py-4">${f.pi || '-'}</td>
+                <td class="px-4 py-4 descricao-cell" title="${f.descricao || ''}">${descTrunc}</td>
+                <td class="px-4 py-4 descricao-cell" title="${f.solucao || ''}">${solTrunc}</td>
+                <td class="px-4 py-4">${f.solicitante || '-'}</td>
+                <td class="px-4 py-4"><span class="${f.estado === 'Finalizado' ? 'bg-emerald-700 text-emerald-200' : 'bg-amber-700 text-amber-200'} px-3 py-1 rounded-full text-xs">${f.estado}</span></td>
+                <td class="px-4 py-4"><button onclick="editarForce(${idx})" class="text-cyan-400"><i class="fas fa-edit"></i></button></td>
+                </tr>
+                `;
+            }).join('');
+            if (sem) sem.classList.toggle('hidden', resultados.length > 0);
+        }
+    }
+
+    function exportarResultadoPesquisa() {
+        const texto = document.getElementById('pesqTexto')?.value.toLowerCase() || '';
+        const tipo = document.getElementById('pesqTipo')?.value || '';
+        const estado = document.getElementById('pesqEstado')?.value || '';
+        const data = document.getElementById('pesqData')?.value || '';
+
+        let resultados = forces.filter(f => {
+            if (texto && !f.codigo.toLowerCase().includes(texto) && !(f.descricao || '').toLowerCase().includes(texto) &&
+                !(f.equipamento || '').toLowerCase().includes(texto) && !(f.endereco || '').toLowerCase().includes(texto))
+                return false;
+            if (tipo && f.tipoForce !== tipo) return false;
+            if (estado && f.estado !== estado) return false;
+            if (data && f.data !== data) return false;
+            return true;
+        });
+
+        if (resultados.length === 0) {
+            alert('Nenhum resultado para exportar.');
+            return;
+        }
+
+        const dadosPlanilha = resultados.map(f => ({
+            Código: f.codigo,
+            Data: f.data,
+            Tipo: f.tipoForce,
+            Local: f.local || '',
+            Equipamento: f.equipamento,
+            Endereço: f.endereco,
+            PI: f.pi,
+            Descrição: f.descricao,
+            Solução: f.solucao || '',
+            Solicitante: f.solicitante,
+            Estado: f.estado
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dadosPlanilha);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Resultado Pesquisa');
+        XLSX.writeFile(wb, `pesquisa-forces-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    // ==================== EXPORTAÇÃO / IMPORTAÇÃO (ADMIN) ====================
+    function exportarJSON() {
+        const dados = { forces, cadastros };
+        const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `backup-forces-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function importarJSON() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                try {
+                    const dados = JSON.parse(ev.target.result);
+                    if (dados.forces && dados.cadastros) {
+                        if (confirm('Importar dados do ficheiro? Isto substituirá todos os dados atuais.')) {
+                            forces = dados.forces;
+                            cadastros = dados.cadastros;
+                            salvarForces();
+                            salvarCadastros();
+                            aplicarPermissoes();
+                            renderizarTudo();
+                            alert('Importação concluída com sucesso!');
+                        }
+                    } else {
+                        alert('Ficheiro inválido.');
+                    }
+                } catch (err) {
+                    alert('Erro ao ler o ficheiro JSON.');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    // ==================== INICIALIZAÇÃO ====================
+    window.onload = () => {
+        carregarDados();
+        if (!document.getElementById('mainApp').classList.contains('hidden')) {
+            aplicarPermissoes();
+            renderizarTudo();
+        }
+        showSubTab(0);
+        showTab(0);
+    };
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') fecharModal();
+    });
+</script>
+</body>
+</html>
